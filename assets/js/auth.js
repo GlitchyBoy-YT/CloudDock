@@ -232,7 +232,7 @@ if (!supabase) {
     if(!window.confirm('Delete this hosting service and its saved source archive? This cannot be undone.')) return;
     button.disabled=true;
     try { await controlPlane('delete_service',{service_id:serviceId});
-      const toast=document.querySelector('#toast'); toast.textContent='Hosting service deleted.'; toast.classList.add('show');
+      const toast=document.querySelector('#toast'); toast.textContent='Service deletion queued. It will disappear after worker cleanup.'; toast.classList.add('show');
       await loadOwnedApps((await supabase.auth.getUser()).data.user);
     } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
     finally { button.disabled=false; }
