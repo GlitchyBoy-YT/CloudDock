@@ -31,7 +31,7 @@ CloudDock is a multi-service hosting platform with one customer account and a un
 
 1. Create a Supabase project.
 2. Set the project URL and publishable/anon key in `assets/js/config.js`. Never put a service-role key in browser code.
-3. Run migrations in order: `0001_accounts_and_apps.sql`, then `0002_hosting_control_plane.sql`.
+3. Run migrations in order: `0001_accounts_and_apps.sql`, `0002_hosting_control_plane.sql`, then `0003_worker_recovery.sql`.
 4. Deploy `supabase/functions/control-plane` with the Supabase CLI or Dashboard.
 5. Set Edge Function secrets:
    - `SUPABASE_URL`
