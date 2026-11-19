@@ -172,8 +172,11 @@ async function handleWorker(body: Record<string, unknown>) {
     return { reconciled: data ?? 0 };
   }
   if (action === "heartbeat") {
-    const { error } = await admin.from("hosting_workers").update({ status: "online", last_heartbeat_at: new Date().toISOString() }).eq("id", workerId);
+    const now = new Date().toISOString();
+    const { error } = await admin.from("hosting_workers").update({ status: "online", last_heartbeat_at: now }).eq("id", workerId);
     if (error) throw error;
+    const { error: leaseError } = await admin.from("hosting_jobs").update({ claimed_at: now }).eq("worker_id", workerId).in("status", ["claimed","running"]);
+    if (leaseError) throw leaseError;
     return { ok: true };
   }
   if (action === "claim") {
