@@ -59,10 +59,14 @@ async function loadOwnedApps(user) {
     id: app.id, name: app.name, platform: app.platform, runtime: app.runtime,
     status: app.status === "running" ? "online" : "stopped", version: app.version || "Not deployed"
   }));
-  localStorage.setItem("clouddock-demo-apps", JSON.stringify(rows));
-  // App records are loaded from the authenticated database, not browser demo data.
-  const old = document.querySelector("#app-grid");
-  if (old) window.dispatchEvent(new Event("clouddock:apps-loaded"));
+  const serialized = JSON.stringify(rows);
+  const previous = localStorage.getItem("clouddock-demo-apps");
+  localStorage.setItem("clouddock-demo-apps", serialized);
+  // Reload once when the account's database data differs from the stale browser demo cache.
+  if (previous !== serialized) {
+    window.location.reload();
+    return;
+  }
 }
 function showDashboard(user) {
   authScreen.hidden = true;
