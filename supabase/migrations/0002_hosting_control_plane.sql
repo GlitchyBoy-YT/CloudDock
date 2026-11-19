@@ -13,7 +13,7 @@ create table if not exists public.hosting_plans (
   created_at timestamptz not null default now()
 );
 insert into public.hosting_plans(id,name,description,monthly_price_cents,max_services,max_memory_mb,max_storage_mb,enabled)
-values ('free','Free','Development plan; deployments remain unavailable until a worker is assigned.',0,2,512,1024,false)
+values ('free','Free','Development plan; service creation is enabled, but deployments require an available worker.',0,2,512,1024,true)
 on conflict(id) do nothing;
 
 create table if not exists public.hosting_services (
@@ -164,3 +164,13 @@ end;
 $$;
 revoke all on function public.clouddock_enqueue_job(uuid,uuid,text) from public,anon,authenticated;
 grant execute on function public.clouddock_enqueue_job(uuid,uuid,text) to service_role;
+
+
+-- Private object storage for customer source ZIPs. Only the control plane signs upload/download URLs.
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+values ('service-source','service-source',false,104857600,array['application/zip','application/x-zip-compressed'])
+on conflict(id) do update set public=false,file_size_limit=104857600,allowed_mime_types=excluded.allowed_mime_types;
+
+drop policy if exists "No direct customer access to service source" on storage.objects;
+create policy "No direct customer access to service source" on storage.objects
+  for all to authenticated using (false) with check (false);
