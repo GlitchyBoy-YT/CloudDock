@@ -107,6 +107,8 @@ async function handleCustomer(user: { id: string }, body: Record<string, unknown
     const name = String(body.name || "").toUpperCase();
     const value = String(body.value || "");
     if (!/^[0-9a-f-]{36}$/i.test(id) || !/^[A-Z][A-Z0-9_]{0,63}$/.test(name) || value.length < 1 || value.length > 4096) throw new Error("Invalid secret name or value.");
+    const { data: ownedService, error: ownershipError } = await admin.from("hosting_services").select("id").eq("id", id).eq("owner_id", user.id).single();
+    if (ownershipError || !ownedService) throw new Error("Service not found.");
     const encrypted = await encryptSecret(value);
     const { error } = await admin.from("hosting_service_secrets").upsert({ service_id: id, owner_id: user.id, secret_name: name, encrypted_value: encrypted, updated_at: new Date().toISOString() }, { onConflict: "service_id,secret_name" });
     if (error) throw error;
