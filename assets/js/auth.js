@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const authScreen = document.querySelector("#auth-screen");
+const publicSite = document.querySelector("#public-site");
 const dashboard = document.querySelector("#dashboard-shell");
 const form = document.querySelector("#auth-form");
 const emailInput = document.querySelector("#auth-email");
@@ -48,6 +49,7 @@ loginTab.addEventListener("click", () => setMode("login"));
 signupTab.addEventListener("click", () => setMode("signup"));
 
 function showAuthSetupError() {
+  publicSite.hidden = true;
   authScreen.hidden = false;
   dashboard.style.display = "none";
   showMessage("CloudDock authentication is not configured yet. Add your Supabase project URL and publishable anon key in assets/js/config.js, then run supabase/migrations/0001_accounts_and_apps.sql in your Supabase SQL editor.", true);
@@ -74,6 +76,7 @@ async function loadOwnedApps(user) {
   }
 }
 function showDashboard(user) {
+  publicSite.hidden = true;
   authScreen.hidden = true;
   dashboard.style.display = "grid";
   accountEmail.textContent = user.email || "Signed in";
@@ -81,7 +84,8 @@ function showDashboard(user) {
 async function handleSession(session) {
   if (!session?.user) {
     dashboard.style.display = "none";
-    authScreen.hidden = false;
+    authScreen.hidden = true;
+    publicSite.hidden = false;
     accountEmail.textContent = "";
     return;
   }
@@ -98,7 +102,7 @@ async function handleSession(session) {
 }
 
 if (!supabase) {
-  showAuthSetupError();
+  document.addEventListener("clouddock:open-auth", showAuthSetupError);
 } else {
   form.addEventListener("submit", async event => {
     event.preventDefault();
