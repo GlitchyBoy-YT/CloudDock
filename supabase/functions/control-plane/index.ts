@@ -65,10 +65,8 @@ async function handleCustomer(user: { id: string }, body: Record<string, unknown
     const platform = body.platform == null ? null : String(body.platform);
     const runtime = String(body.runtime || "");
     if (name.length < 1 || name.length > 48) throw new Error("Service names must be 1–48 characters.");
-    const valid = (serviceType === "bot" && ["nodejs", "python"].includes(runtime) && ["discord", "nerimity", "fluxer", "stoat"].includes(platform || "")) ||
-      (serviceType === "minecraft" && runtime === "minecraft-java") ||
-      (serviceType === "website" && runtime === "static-site");
-    if (!valid) throw new Error("That service type and runtime combination is not supported.");
+    const valid = serviceType === "bot" && ["nodejs", "python"].includes(runtime) && ["discord", "nerimity", "fluxer", "stoat"].includes(platform || "");
+    if (!valid) throw new Error("Bot hosting currently supports Discord, Nerimity, Fluxer, and Stoat with Node.js or Python. Minecraft and website hosting are not deployable yet.");
     const { data: plan, error: planError } = await admin.from("hosting_plans").select("*").eq("id", "free").eq("enabled", true).single();
     if (planError || !plan) throw new Error("New service creation is temporarily unavailable.");
     const { count, error: countError } = await admin.from("hosting_services").select("id", { count: "exact", head: true }).eq("owner_id", user.id);
