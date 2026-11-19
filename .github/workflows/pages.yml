@@ -1,0 +1,62 @@
+name: Deploy CloudDock to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Pages
+        uses: actions/configure-pages@v5
+
+      - name: Inject public Supabase browser configuration
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY as repository Actions secrets."
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const path = 'assets/js/config.js';
+          let source = readFileSync(path, 'utf8');
+          source = source.replace('"__SUPABASE_URL__"', JSON.stringify(process.env.VITE_SUPABASE_URL));
+          source = source.replace('"__SUPABASE_ANON_KEY__"', JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY));
+          if (source.includes('__SUPABASE_URL__') || source.includes('__SUPABASE_ANON_KEY__')) {
+            throw new Error('Supabase browser configuration placeholders were not replaced.');
+          }
+          writeFileSync(path, source);
+          NODE
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

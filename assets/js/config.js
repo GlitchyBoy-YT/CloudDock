@@ -1,4 +1,5 @@
-// Supabase browser configuration.
-// The publishable/anon key is designed for browser use. Never put a service_role key here.
-export const SUPABASE_URL = ${{ secrets.VITE_SUPABASE_URL  }};
-export const SUPABASE_ANON_KEY = ${{ secrets.VITE_SUPABASE_ANON_KEY }};
+// Public browser configuration. The Pages workflow fills these placeholders
+// from the repository Actions secrets during deployment.
+// Never put a Supabase service_role key in browser code.
+export const SUPABASE_URL = "__SUPABASE_URL__";
+export const SUPABASE_ANON_KEY = "__SUPABASE_ANON_KEY__";

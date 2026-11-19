@@ -22,7 +22,10 @@ const accountEmail = document.querySelector("#account-email");
 let mode = "login";
 let busy = false;
 const configured = SUPABASE_URL && SUPABASE_ANON_KEY &&
-  !SUPABASE_URL.includes("YOUR_PROJECT") && !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE");
+  !SUPABASE_URL.includes("YOUR_PROJECT") &&
+  !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE") &&
+  !SUPABASE_URL.includes("__SUPABASE_URL__") &&
+  !SUPABASE_ANON_KEY.includes("__SUPABASE_ANON_KEY__");
 const supabase = configured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 }) : null;
@@ -90,7 +93,9 @@ function showDashboard(user) {
   // Public-site hashes such as #services are not valid dashboard pages and fall back to Overview.
   if (typeof window.route === "function") window.route();
 }
+let sessionVersion = 0;
 async function handleSession(session) {
+  const version = ++sessionVersion;
   if (!session?.user) {
     dashboard.style.display = "none";
     authScreen.hidden = true;
@@ -98,15 +103,24 @@ async function handleSession(session) {
     accountEmail.textContent = "";
     return;
   }
+
+  // Authentication and dashboard data loading are separate concerns. Show the
+  // dashboard as soon as Supabase confirms the session; a temporary control-plane
+  // error must not make a valid login look like a failed sign-in.
+  showDashboard(session.user);
   try {
     await loadOwnedApps(session.user);
-    showDashboard(session.user);
-    // Re-run the legacy renderer after the authenticated records have loaded.
+    if (version !== sessionVersion) return;
     if (typeof window.draw === "function") window.draw();
   } catch (error) {
-    showMessage("Could not load your applications: " + error.message, true);
-    authScreen.hidden = false;
-    dashboard.style.display = "none";
+    if (version !== sessionVersion) return;
+    const toast = document.querySelector("#toast");
+    if (toast) {
+      toast.textContent = "Signed in, but applications could not be loaded: " + error.message;
+      toast.classList.add("show");
+    } else {
+      showMessage("Signed in, but applications could not be loaded: " + error.message, true);
+    }
   }
 }
 
@@ -285,8 +299,7 @@ if (!supabase) {
     // Avoid Supabase callback lock re-entrancy: session hydration is scheduled outside callback.
     setTimeout(() => handleSession(session), 0);
   });
-  supabase.auth.getSession().then(({ data, error }) => {
-    if (error) showMessage(error.message, true);
-    handleSession(data?.session);
-  });
+  // Supabase emits INITIAL_SESSION after the client restores its persisted session.
+  // Use that single source of truth instead of racing it against a second getSession()
+  // call during page refresh.
 }
