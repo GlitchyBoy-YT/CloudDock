@@ -132,6 +132,8 @@ begin
   if not found then return; end if;
   update public.hosting_jobs set status='claimed',worker_id=p_worker_id,claimed_at=now(),attempts=attempts+1
     where id=claimed.id returning * into claimed;
+  update public.hosting_services set worker_id=p_worker_id,status='starting',updated_at=now()
+    where id=claimed.service_id;
   return next claimed;
 end;
 $$;
@@ -154,8 +156,8 @@ begin
   if exists(select 1 from public.hosting_jobs where service_id=p_service_id and status in ('queued','claimed','running')) then
     raise exception 'A service operation is already in progress';
   end if;
-  insert into public.hosting_jobs(service_id,owner_id,action,payload)
-    values(p_service_id,p_owner_id,p_action,jsonb_build_object('service_type',svc.service_type,'runtime',svc.runtime,'region',svc.region))
+  insert into public.hosting_jobs(service_id,owner_id,worker_id,action,payload)
+    values(p_service_id,p_owner_id,svc.worker_id,p_action,jsonb_build_object('service_type',svc.service_type,'runtime',svc.runtime,'region',svc.region))
     returning * into job;
   update public.hosting_services set status='queued',desired_state=case when p_action in ('start','restart','deploy') then 'running' else 'stopped' end,updated_at=now()
     where id=p_service_id;
