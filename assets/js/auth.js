@@ -22,7 +22,10 @@ const accountEmail = document.querySelector("#account-email");
 let mode = "login";
 let busy = false;
 const configured = SUPABASE_URL && SUPABASE_ANON_KEY &&
-  !SUPABASE_URL.includes("YOUR_PROJECT") && !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE");
+  !SUPABASE_URL.includes("YOUR_PROJECT") &&
+  !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE") &&
+  !SUPABASE_URL.includes("__SUPABASE_URL__") &&
+  !SUPABASE_ANON_KEY.includes("__SUPABASE_ANON_KEY__");
 const supabase = configured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 }) : null;
