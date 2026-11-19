@@ -210,6 +210,50 @@ if (!supabase) {
     finally { button.disabled=false; }
   });
 
+  document.addEventListener('click', async event => {
+    const button=event.target.closest('[data-service-secret-manager]'); if(!button) return;
+    const serviceId=button.dataset.serviceSecretManager; button.disabled=true;
+    try {
+      const result=await controlPlane('list_secrets',{service_id:serviceId});
+      const names=(result.secrets||[]).map(item=>item.secret_name);
+      if(!names.length) { alert('No environment secrets are saved for this service yet.'); return; }
+      const selected=window.prompt('Saved secret names (values are never shown):\n'+names.join('\n')+'\n\nEnter a name to remove it:');
+      if(!selected) return; const name=selected.trim().toUpperCase();
+      if(!names.includes(name)) throw new Error('That secret name was not found.');
+      if(!window.confirm('Remove '+name+' from this service?')) return;
+      await controlPlane('delete_secret',{service_id:serviceId,name});
+      const toast=document.querySelector('#toast'); toast.textContent='Environment secret removed.'; toast.classList.add('show');
+    } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
+    finally { button.disabled=false; }
+  });
+  document.addEventListener('click', async event => {
+    const button=event.target.closest('[data-service-delete]'); if(!button) return;
+    const serviceId=button.dataset.serviceDelete;
+    if(!window.confirm('Delete this hosting service and its saved source archive? This cannot be undone.')) return;
+    button.disabled=true;
+    try { await controlPlane('delete_service',{service_id:serviceId});
+      const toast=document.querySelector('#toast'); toast.textContent='Service deletion queued. It will disappear after worker cleanup.'; toast.classList.add('show');
+      await loadOwnedApps((await supabase.auth.getUser()).data.user);
+    } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
+    finally { button.disabled=false; }
+  });
+  document.addEventListener('click', async event => {
+    const button=event.target.closest('[data-service-activity]'); if(!button) return;
+    const serviceId=button.dataset.serviceActivity; button.disabled=true;
+    try {
+      const [eventsResult,jobsResult]=await Promise.all([controlPlane('service_events',{service_id:serviceId}),controlPlane('service_jobs',{service_id:serviceId})]);
+      const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      let panel=document.querySelector('#clouddock-activity');
+      if(!panel) { panel=document.createElement('div'); panel.id='clouddock-activity'; panel.style.cssText='position:fixed;inset:0;z-index:9999;background:#050914dd;display:grid;place-items:center;padding:20px';
+        panel.innerHTML='<section style="width:min(760px,100%);max-height:85vh;overflow:auto;background:#121b30;border:1px solid #35435e;border-radius:16px;padding:22px;color:#edf2ff"><header style="display:flex;justify-content:space-between;align-items:center"><h2>Service activity</h2><button type="button" id="clouddock-activity-close" class="btn">Close</button></header><div id="clouddock-activity-body"></div></section>';
+        document.body.append(panel); panel.querySelector('#clouddock-activity-close').addEventListener('click',()=>panel.remove()); panel.addEventListener('click',e=>{if(e.target===panel)panel.remove()});
+      }
+      const events=(eventsResult.events||[]).map(item=>'<article style="padding:10px 0;border-bottom:1px solid #26334d"><b>'+escape(item.level.toUpperCase())+'</b> · '+escape(item.message)+'<div style="color:#94a3b8;font-size:12px">'+escape(new Date(item.created_at).toLocaleString())+'</div></article>').join('')||'<p>No service events yet.</p>';
+      const jobs=(jobsResult.jobs||[]).map(item=>'<article style="padding:10px 0;border-bottom:1px solid #26334d"><b>'+escape(item.action.toUpperCase())+'</b> · '+escape(item.status)+(item.error?' — '+escape(item.error):'')+'<div style="color:#94a3b8;font-size:12px">'+escape(new Date(item.created_at).toLocaleString())+'</div></article>').join('')||'<p>No deployment operations yet.</p>';
+      panel.querySelector('#clouddock-activity-body').innerHTML='<h3>Recent operations</h3>'+jobs+'<h3 style="margin-top:22px">Service events</h3>'+events;
+    } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
+    finally { button.disabled=false; }
+  });
   document.addEventListener('change', async event => {
     const input=event.target.closest('[data-service-source]'); if(!input || !input.files?.[0]) return;
     const file=input.files[0];

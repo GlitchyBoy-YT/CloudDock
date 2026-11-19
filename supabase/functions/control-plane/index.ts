@@ -112,6 +112,33 @@ async function handleCustomer(user: { id: string }, body: Record<string, unknown
     if (error) throw error;
     return { saved: true };
   }
+  if (action === "delete_service") {
+    const id = String(body.service_id || "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Invalid service ID.");
+    const { data: svc, error: lookupError } = await admin.from("hosting_services").select("id,source_object").eq("id", id).eq("owner_id", user.id).single();
+    if (lookupError || !svc) throw new Error("Service not found.");
+    const { data, error } = await admin.rpc("clouddock_enqueue_job", { p_service_id: id, p_owner_id: user.id, p_action: "delete" });
+    if (error) throw error;
+    return { queued: true, job: data };
+  }
+  if (action === "list_secrets") {
+    const id = String(body.service_id || "");
+    const { data: owned, error: ownershipError } = await admin.from("hosting_services").select("id").eq("id", id).eq("owner_id", user.id).single();
+    if (ownershipError || !owned) throw new Error("Service not found.");
+    const { data, error } = await admin.from("hosting_service_secrets").select("secret_name,created_at,updated_at").eq("service_id", id).eq("owner_id", user.id).order("secret_name");
+    if (error) throw error;
+    return { secrets: data };
+  }
+  if (action === "delete_secret") {
+    const id = String(body.service_id || "");
+    const name = String(body.name || "").toUpperCase();
+    if (!/^[0-9a-f-]{36}$/i.test(id) || !/^[A-Z][A-Z0-9_]{0,63}$/.test(name)) throw new Error("Invalid secret name or service.");
+    const { data: owned, error: ownershipError } = await admin.from("hosting_services").select("id").eq("id", id).eq("owner_id", user.id).single();
+    if (ownershipError || !owned) throw new Error("Service not found.");
+    const { error } = await admin.from("hosting_service_secrets").delete().eq("service_id", id).eq("owner_id", user.id).eq("secret_name", name);
+    if (error) throw error;
+    return { deleted: true };
+  }
   if (action === "service_events") {
     const id = String(body.service_id || "");
     const { data, error } = await admin.from("hosting_service_events").select("id,level,message,created_at").eq("service_id", id).eq("owner_id", user.id).order("created_at", { ascending: false }).limit(100);
@@ -139,9 +166,17 @@ async function handleWorker(body: Record<string, unknown>) {
   }
   const workerId = String(body.worker_id || "");
   if (!/^[0-9a-f-]{36}$/i.test(workerId)) throw new Error("Invalid worker ID.");
-  if (action === "heartbeat") {
-    const { error } = await admin.from("hosting_workers").update({ status: "online", last_heartbeat_at: new Date().toISOString() }).eq("id", workerId);
+  if (action === "reconcile") {
+    const { data, error } = await admin.rpc("clouddock_reconcile_stale_jobs");
     if (error) throw error;
+    return { reconciled: data ?? 0 };
+  }
+  if (action === "heartbeat") {
+    const now = new Date().toISOString();
+    const { error } = await admin.from("hosting_workers").update({ status: "online", last_heartbeat_at: now }).eq("id", workerId);
+    if (error) throw error;
+    const { error: leaseError } = await admin.from("hosting_jobs").update({ claimed_at: now }).eq("worker_id", workerId).in("status", ["claimed","running"]);
+    if (leaseError) throw leaseError;
     return { ok: true };
   }
   if (action === "claim") {
@@ -185,6 +220,19 @@ async function handleWorker(body: Record<string, unknown>) {
     const { data: job, error: jobError } = await admin.from("hosting_jobs").select("id,service_id,owner_id,action,worker_id,status").eq("id", jobId).eq("worker_id", workerId).single();
     if (jobError || !job || job.status !== "claimed") throw new Error("Job is not assigned to this worker.");
     if (job.service_id !== serviceId) throw new Error("Job/service mismatch.");
+    if (success && job.action === "delete") {
+      const { data: svc, error: svcError } = await admin.from("hosting_services").select("id,source_object").eq("id", serviceId).single();
+      if (svcError || !svc) throw new Error("Service not found while completing deletion.");
+      if (svc.source_object) {
+        const { error: storageError } = await admin.storage.from("service-source").remove([svc.source_object]);
+        if (storageError) throw new Error("Could not remove the service source archive.");
+      }
+      const { error: eventError } = await admin.from("hosting_service_events").insert({ service_id: serviceId, owner_id: job.owner_id, level: "info", message: "Hosting service deletion completed." });
+      if (eventError) throw eventError;
+      const { error: deleteError } = await admin.from("hosting_services").delete().eq("id", serviceId);
+      if (deleteError) throw deleteError;
+      return { completed: true, deleted: true };
+    }
     const { error: updateJobError } = await admin.from("hosting_jobs").update({ status: success ? "succeeded" : "failed", result: { container_id: containerId }, error: errorText, completed_at: new Date().toISOString() }).eq("id", jobId);
     if (updateJobError) throw updateJobError;
     const { error: serviceError } = await admin.from("hosting_services").update({ status: success ? (job.action === "stop" ? "stopped" : "running") : "failed", container_id: success ? containerId : null, last_error: errorText, updated_at: new Date().toISOString() }).eq("id", serviceId);

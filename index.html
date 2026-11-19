@@ -58,7 +58,7 @@ const seed=[{id:1,name:"Community Assistant",platform:"Discord",runtime:"Node.js
     const id=esc(a.id);
     const action=a.status==="online"?"stop":"start";
     const actionLabel=a.status==="online"?"Stop":"Start";
-    return '<article class="panel appcard">' + row(a) + '<p>Hosting service · '+esc(a.version)+'</p><div class="actions"><button class="btn" data-service-action="'+action+'" data-service-id="'+id+'">'+actionLabel+'</button><button class="btn" data-service-action="restart" data-service-id="'+id+'">Restart</button><button class="btn" data-service-secrets="'+id+'">Environment</button><label class="btn">Upload ZIP<input type="file" accept=".zip,application/zip" data-service-source="'+id+'" hidden></label></div></article>';
+    return '<article class="panel appcard">' + row(a) + '<p>Hosting service · '+esc(a.version)+'</p><div class="actions"><button class="btn" data-service-action="'+action+'" data-service-id="'+id+'">'+actionLabel+'</button><button class="btn" data-service-action="restart" data-service-id="'+id+'">Restart</button><button class="btn" data-service-secrets="'+id+'">Environment</button><button class="btn" data-service-secret-manager="'+id+'">Manage secrets</button><button class="btn" data-service-activity="'+id+'">Activity</button><button class="btn danger" data-service-delete="'+id+'">Delete</button><label class="btn">Upload ZIP<input type="file" accept=".zip,application/zip" data-service-source="'+id+'" hidden></label></div></article>';
   }).join("")||'<div class="panel">No services found.</div>';
   $("#deploy-rows").innerHTML=apps.map(a=>'<tr><td>'+esc(a.name)+'</td><td>'+esc(a.platform)+'</td><td>'+esc(a.version)+'</td><td>'+badge(a)+'</td></tr>').join("");
 }
