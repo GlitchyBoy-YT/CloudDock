@@ -1,0 +1,5 @@
+project_id = "clouddock"
+
+[functions.control-plane]
+# The function verifies customer JWTs itself and separately authenticates worker requests.
+verify_jwt = false

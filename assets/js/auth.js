@@ -56,24 +56,30 @@ function showAuthSetupError() {
   submitButton.disabled = true;
   forgotButton.disabled = true;
 }
+async function controlPlane(action, payload = {}) {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData?.session?.access_token) throw new Error('Please sign in again.');
+  const response = await fetch(SUPABASE_URL + '/functions/v1/control-plane', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + sessionData.session.access_token },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.error) throw new Error(result.error || ('Control plane error (' + response.status + ').'));
+  return result;
+}
 async function loadOwnedApps(user) {
-  const { data, error } = await supabase.from("apps")
-    .select("id,name,platform,runtime,status,version")
-    .eq("owner_id", user.id)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  const rows = (data || []).map(app => ({
-    id: app.id, name: app.name, platform: app.platform, runtime: app.runtime,
-    status: app.status === "running" ? "online" : "stopped", version: app.version || "Not deployed"
+  const result = await controlPlane('list_services');
+  const rows = (result.services || []).map(service => ({
+    id: service.id, name: service.name,
+    platform: service.platform ? service.platform[0].toUpperCase() + service.platform.slice(1) : service.service_type,
+    runtime: service.runtime === 'nodejs' ? 'Node.js' : service.runtime === 'python' ? 'Python' : service.runtime,
+    status: service.status === 'running' ? 'online' : 'stopped', version: service.status === 'running' ? 'Running' : service.status
   }));
-  const serialized = JSON.stringify(rows);
-  const previous = localStorage.getItem("clouddock-demo-apps");
-  localStorage.setItem("clouddock-demo-apps", serialized);
-  // Reload once when the account's database data differs from the stale browser demo cache.
-  if (previous !== serialized) {
-    window.location.reload();
-    return;
-  }
+  localStorage.setItem('clouddock-demo-apps', JSON.stringify(rows));
+  window.clouddockServices = result.services || [];
+  window.clouddockControlPlane = controlPlane;
+  if (typeof window.draw === 'function') window.draw();
 }
 function showDashboard(user) {
   publicSite.hidden = true;
@@ -164,35 +170,61 @@ if (!supabase) {
     signOutButton.disabled = false;
   });
 
-  // Intercept the app form so records are saved under the signed-in user's RLS-protected account.
-  document.addEventListener("submit", async event => {
-    if (event.target.id !== "create-form") return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+  // Create hosting services through the authenticated control plane.
+  document.addEventListener('submit', async event => {
+    if (event.target.id !== 'create-form') return;
+    event.preventDefault(); event.stopImmediatePropagation();
     const data = new FormData(event.target);
-    const name = String(data.get("name") || "").trim();
-    const platform = String(data.get("platform") || "");
-    const runtime = String(data.get("runtime") || "");
-    const allowedPlatforms = ["Discord", "Nerimity", "Fluxer", "Stoat"];
-    const allowedRuntimes = ["Node.js", "Python", "Docker image (planned)"];
-    if (!name || !allowedPlatforms.includes(platform) || !allowedRuntimes.includes(runtime)) return;
-    const { data: created, error } = await supabase.from("apps").insert({
-      name, platform, runtime, status: "stopped", version: "Not deployed"
-    }).select("id,name,platform,runtime,status,version").single();
-    if (error) {
-      const toast = document.querySelector("#toast");
-      toast.textContent = "Could not create application: " + error.message;
-      toast.classList.add("show");
-      return;
-    }
-    const current = JSON.parse(localStorage.getItem("clouddock-demo-apps") || "[]");
-    current.unshift({ id: created.id, name: created.name, platform: created.platform, runtime: created.runtime, status: "stopped", version: created.version });
-    localStorage.setItem("clouddock-demo-apps", JSON.stringify(current));
-    event.target.reset();
-    document.querySelector("#modal").classList.remove("open");
-    location.hash = "applications";
-    location.reload();
+    const name = String(data.get('name') || '').trim();
+    const platform = String(data.get('platform') || '').toLowerCase();
+    const runtimeLabel = String(data.get('runtime') || '');
+    const runtime = runtimeLabel === 'Node.js' ? 'nodejs' : runtimeLabel === 'Python' ? 'python' : '';
+    try {
+      await controlPlane('create_service', { name, service_type:'bot', platform, runtime });
+      event.target.reset(); document.querySelector('#modal').classList.remove('open'); location.hash='applications';
+      await loadOwnedApps((await supabase.auth.getUser()).data.user);
+      const toast=document.querySelector('#toast'); toast.textContent='Hosting service created. Upload a ZIP to deploy it.'; toast.classList.add('show');
+    } catch (error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
   }, true);
+
+  document.addEventListener('click', async event => {
+    const button=event.target.closest('[data-service-action]'); if(!button) return;
+    button.disabled=true;
+    try {
+      await controlPlane('service_action',{service_id:button.dataset.serviceId,operation:button.dataset.serviceAction});
+      const toast=document.querySelector('#toast'); toast.textContent='Operation queued for a hosting worker.'; toast.classList.add('show');
+      await loadOwnedApps((await supabase.auth.getUser()).data.user);
+    } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
+    finally { button.disabled=false; }
+  });
+
+  document.addEventListener('click', async event => {
+    const button=event.target.closest('[data-service-secrets]'); if(!button) return;
+    const name=window.prompt('Environment variable name (example: DISCORD_TOKEN):'); if(!name) return;
+    const value=window.prompt('Enter the secret value. It is encrypted before storage and cannot be viewed again:'); if(!value) return;
+    button.disabled=true;
+    try {
+      await controlPlane('set_secret',{service_id:button.dataset.serviceSecrets,name,value});
+      const toast=document.querySelector('#toast'); toast.textContent='Environment secret saved securely.'; toast.classList.add('show');
+    } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
+    finally { button.disabled=false; }
+  });
+
+  document.addEventListener('change', async event => {
+    const input=event.target.closest('[data-service-source]'); if(!input || !input.files?.[0]) return;
+    const file=input.files[0];
+    if(!file.name.toLowerCase().endsWith('.zip') || file.size>100*1024*1024) { const toast=document.querySelector('#toast'); toast.textContent='Choose a ZIP archive no larger than 100 MB.'; toast.classList.add('show'); input.value=''; return; }
+    input.disabled=true;
+    try {
+      const signed=await controlPlane('create_upload_url',{service_id:input.dataset.serviceSource});
+      const upload=await fetch(signed.upload_url,{method:'PUT',headers:{'Content-Type':'application/zip','x-upsert':'false'},body:file});
+      if(!upload.ok) throw new Error('Source upload failed. Check the private service-source bucket setup.');
+      await controlPlane('service_action',{service_id:input.dataset.serviceSource,operation:'deploy'});
+      const toast=document.querySelector('#toast'); toast.textContent='Source uploaded and deployment queued.'; toast.classList.add('show');
+      await loadOwnedApps((await supabase.auth.getUser()).data.user);
+    } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
+    finally { input.disabled=false; input.value=''; }
+  });
 
   supabase.auth.onAuthStateChange((event, session) => {
     // Password recovery links create a temporary session; let the user choose a new password.

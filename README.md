@@ -1,63 +1,79 @@
 # CloudDock
 
-CloudDock is a multi-service hosting platform concept with one customer account and a unified control panel.
+CloudDock is a multi-service hosting platform with one customer account and a unified control panel.
 
-## Services in the product plan
+## Product scope
 
-- **Bot hosting:** Discord, Nerimity, Fluxer, and Stoat, with Node.js and Python runtimes.
-- **Minecraft hosting:** server software/version selection, console, files, scheduled tasks, backups, databases, subusers, and optional subdomains.
-- **Web hosting:** websites/domains, file manager, software installer, databases, and backups.
-- **Customer account:** Supabase email/password sign-up, login, email verification, password recovery, and account-owned application records.
-- **Unified panel roadmap:** console, file manager, SFTP, backups, databases, schedules, resource monitoring, team permissions, and billing.
+- **Bot hosting:** Discord, Nerimity, Fluxer, and Stoat; Node.js and Python runtimes.
+- **Minecraft hosting:** planned server software/version selection, console, files, scheduled tasks, backups, databases, and subusers.
+- **Web hosting:** planned websites/domains, file manager, databases, and backups.
+- **Customer account:** Supabase email/password sign-up, login, email verification, password recovery, and account-owned services.
+- **Control panel:** service lifecycle requests, source uploads, encrypted environment variables, deployment jobs, and service events.
 
-The public website now presents these service categories and the intended control-panel features. Infrastructure-dependent features are described as planned, not as live services.
+## What is implemented
+
+- Public storefront and customer dashboard.
+- Supabase authentication and user-owned service metadata.
+- SQL control-plane schema with RLS, starter quotas, private source storage, encrypted secret records, worker registry, and an atomic job-claim function.
+- Supabase Edge Function API for customer service creation, service actions, source-upload URLs, environment secrets, worker registration/heartbeat/job claiming/completion.
+- Reference worker agent for **Node.js and Python bot containers** with per-container memory/CPU/PID limits, non-root user, read-only root filesystem, dropped capabilities, no-new-privileges, and no published ports.
+- Dashboard service cards wired to create services, upload ZIPs, queue deploy/start/stop/restart operations, and save encrypted environment variables.
+
+## Not live / not yet implemented
+
+- No CloudDock worker is provisioned by this repository. Real deployments will remain queued until an operator deploys a worker and configures its secrets.
+- The current worker runs bot services only. Minecraft and website workloads are represented in the product catalogue/schema but are not provisioned yet.
+- No reverse proxy, public service ports, live console/log streaming, interactive file manager, SFTP, backup scheduler, database provisioning, domain automation, billing, invoices, or support system yet.
+- Worker crash recovery, multi-worker scheduling/capacity reservation, usage metering, and production alerting still need work.
+- Do not advertise paid plans, uptime guarantees, or live server locations until the infrastructure and operations are actually ready.
 
 ## Supabase setup
 
 1. Create a Supabase project.
-2. Copy the Project URL and publishable/anon key into `assets/js/config.js`.
-3. Run `supabase/migrations/0001_accounts_and_apps.sql` in the Supabase SQL Editor.
-4. In Supabase Authentication → URL Configuration, set the Site URL to the published CloudDock URL and add it to Redirect URLs.
-5. Configure email delivery and enable email confirmations as desired.
-6. Publish the static site using GitHub Pages (Settings → Pages → Deploy from a branch → `main` → root).
+2. Set the project URL and publishable/anon key in `assets/js/config.js`. Never put a service-role key in browser code.
+3. Run migrations in order: `0001_accounts_and_apps.sql`, then `0002_hosting_control_plane.sql`.
+4. Deploy `supabase/functions/control-plane` with the Supabase CLI or Dashboard.
+5. Set Edge Function secrets:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `CLOUDDOCK_WORKER_TOKEN` — at least 32 random characters.
+   - `CLOUDDOCK_SECRETS_ENCRYPTION_KEY` — base64 encoding of exactly 32 random bytes.
+6. The function config disables platform JWT verification because it verifies customer access tokens itself and authenticates workers with a separate shared token. Do not remove the function's own checks.
+7. In Supabase Auth URL Configuration, set the Site URL to the deployed CloudDock URL and add it to Redirect URLs.
 
-Never put the Supabase `service_role` key in browser code or GitHub. The publishable/anon key is expected to be public; Row Level Security (RLS) is the security boundary for user data.
+Example commands (from a trusted development environment with the Supabase CLI configured):
 
-## Production hosting architecture
-
-GitHub Pages serves only the website. It cannot keep customer processes running. Actual hosting requires infrastructure outside this repository:
-
-```text
-CloudDock website
-      │ Supabase Auth session
-      ▼
-Control API ───── Postgres + encrypted secrets
-      │
-      ▼
-Provisioning queue / scheduler
-      │
-      ▼
-Isolated worker nodes
-      ├── Bot runtimes (Discord / Nerimity / Fluxer / Stoat)
-      ├── Minecraft server containers
-      └── Website hosting containers
+```sh
+supabase link --project-ref YOUR_PROJECT_REF
+supabase db push
+supabase functions deploy control-plane --no-verify-jwt
+supabase secrets set CLOUDDOCK_WORKER_TOKEN="YOUR_LONG_RANDOM_TOKEN"
+supabase secrets set CLOUDDOCK_SECRETS_ENCRYPTION_KEY="BASE64_32_BYTE_KEY"
 ```
 
-The production control plane must enforce ownership checks on every operation. Customer workloads must run in isolated containers or VMs with CPU, memory, disk, process, network, and time limits. Secrets must be encrypted server-side and injected only into the authorized workload. Never execute uploaded customer code inside the API process.
+Supabase provides its own project URL and service-role key in the Edge Function environment in hosted projects; confirm the variables are present before deployment. Never expose the service-role key to the browser or worker containers.
 
-## Current implementation status
+## Worker deployment
 
-- Public CloudDock marketing site and service catalogue.
-- Supabase email/password sign-up, login, email verification, password recovery, and per-user application metadata (after Supabase setup).
-- Dashboard UI: overview, applications, deployments, monitoring, usage, team, settings, and documentation.
-- Real bot/game/web provisioning, live console, file transfer, SFTP, backups, databases, domain automation, resource telemetry, payment processing, and team invitations still require production APIs and infrastructure.
-- Pricing and data-center locations are intentionally not advertised as live until CloudDock has real capacity and operational policies.
+See [worker/README.md](worker/README.md). Run workers only on dedicated Linux VMs. The worker requires Docker socket access, which is effectively host-admin access. Do not run it on a personal computer or a host with private data.
 
-## Suggested next milestones
+The worker's bot runtime currently expects a ZIP containing `index.js` for Node.js or `main.py` for Python at the archive root. Optional `package.json`, `package-lock.json`, and `requirements.txt` are supported. Set required bot credentials in the service card's Environment action; values are encrypted by the control plane and injected into the workload without being written to logs.
 
-1. Provisioning API and isolated worker agent.
-2. Bot deployment lifecycle and secure encrypted credential storage.
-3. File manager, console streaming, logs, and resource telemetry.
-4. Minecraft templates, version installer, databases, backups, and schedules.
-5. Website deployment, domain/DNS integration, and certificates.
-6. Billing, invoices, plan limits, and customer support workflow.
+Before accepting public workloads, configure host firewall rules to block customer access to host management ports, private LAN ranges, metadata endpoints, Docker APIs, and other tenant networks. The worker bridge disables inter-container communication, but that alone is not a complete network security boundary.
+
+## Architecture
+
+```text
+Customer browser ── Supabase Auth ── Control-plane Edge Function
+                                           │
+                              Postgres / private Storage
+                                           │
+                                   Durable job queue
+                                           │
+                               Dedicated worker VM(s)
+                                           │
+                              Isolated bot containers
+```
+
+GitHub Pages serves only the frontend. Persistent workloads run on separately provisioned worker infrastructure.

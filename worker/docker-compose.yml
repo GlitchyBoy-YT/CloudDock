@@ -1,0 +1,19 @@
+services:
+  clouddock-worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    group_add:
+      - "${DOCKER_GID:?Set DOCKER_GID to the host docker socket group ID}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/clouddock/services:/var/lib/clouddock/services
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 512m
