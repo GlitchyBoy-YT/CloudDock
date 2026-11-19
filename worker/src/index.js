@@ -15,7 +15,8 @@ const dataRoot = path.resolve(process.env.CLOUDDOCK_DATA_DIR || "/var/lib/cloudd
 const memoryCapacity = Number(process.env.CLOUDDOCK_WORKER_MEMORY_MB || 4096);
 const docker = new Docker({ socketPath: process.env.DOCKER_SOCKET || "/var/run/docker.sock" });
 let workerId = null;
-let shuttingDown = false;\nlet lastReconcileAt = 0;
+let shuttingDown = false;
+let lastReconcileAt = 0;
 
 async function call(action, payload = {}) {
   const response = await fetch(api, {
@@ -122,7 +123,12 @@ async function startService(service, env) {
 }
 async function execute(job,service,environment,sourceUrl) {
   const existing = service.container_id;
-  if (job.action === "delete") {\n    await stopContainer(existing);\n    await fs.rm(safeServiceDir(service.id),{recursive:true,force:true});\n    return null;\n  }\n  if (job.action === "stop") {
+  if (job.action === "delete") {
+    await stopContainer(existing);
+    await fs.rm(safeServiceDir(service.id),{recursive:true,force:true});
+    return null;
+  }
+  if (job.action === "stop") {
     await stopContainer(existing);
     return null;
   }
@@ -169,7 +175,8 @@ async function mainLoop() {
   await register();
   while (!shuttingDown) {
     try {
-      await call("heartbeat");\n      if (Date.now() - lastReconcileAt > 30000) { await call("reconcile"); lastReconcileAt = Date.now(); }
+      await call("heartbeat");
+      if (Date.now() - lastReconcileAt > 30000) { await call("reconcile"); lastReconcileAt = Date.now(); }
       const result = await call("claim");
       if (result.job && result.service) await processJob(result.job,result.service,result.environment || {},result.source_download_url);
       else { await monitorContainers(); await new Promise(resolve=>setTimeout(resolve,4000)); }
