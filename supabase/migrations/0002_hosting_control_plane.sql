@@ -152,7 +152,7 @@ begin
   if p_action not in ('start','stop','restart','deploy') then raise exception 'Unsupported action'; end if;
   select * into svc from public.hosting_services where id=p_service_id and owner_id=p_owner_id for update;
   if not found then raise exception 'Service not found'; end if;
-  if svc.status in ('suspended','failed') and p_action in ('start','restart','deploy') then raise exception 'Service is not eligible for this action'; end if;
+  if svc.status = 'suspended' and p_action in ('start','restart','deploy') then raise exception 'Service is suspended'; end if;
   if exists(select 1 from public.hosting_jobs where service_id=p_service_id and status in ('queued','claimed','running')) then
     raise exception 'A service operation is already in progress';
   end if;
