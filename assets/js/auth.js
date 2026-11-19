@@ -113,8 +113,8 @@ if (!supabase) {
         });
         if (error) throw error;
         if (!data.session) {
-          showMessage("Account created. Check your email for the verification link, then return here to log in.");
           setMode("login");
+          showMessage("Account created. Check your email for the verification link, then return here to log in.");
           return;
         }
         showMessage("Account created successfully.");
