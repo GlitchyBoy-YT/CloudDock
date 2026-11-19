@@ -79,7 +79,8 @@ async function loadOwnedApps(user) {
     runtime: service.runtime === 'nodejs' ? 'Node.js' : service.runtime === 'python' ? 'Python' : service.runtime,
     status: service.status === 'running' ? 'online' : 'stopped', version: service.status === 'running' ? 'Running' : service.status
   }));
-  localStorage.setItem('clouddock-demo-apps', JSON.stringify(rows));
+  if (typeof window.setCloudDockApps === 'function') window.setCloudDockApps(rows);
+  else localStorage.setItem('clouddock-demo-apps', JSON.stringify(rows));
   window.clouddockServices = result.services || [];
   window.clouddockControlPlane = controlPlane;
   if (typeof window.draw === 'function') window.draw();
@@ -94,9 +95,14 @@ function showDashboard(user) {
   if (typeof window.route === "function") window.route();
 }
 let sessionVersion = 0;
+let lastSessionIdentity = '';
 async function handleSession(session) {
+  const identity = session?.access_token ? session.user.id + ':' + session.access_token : 'signed-out';
+  if (identity === lastSessionIdentity) return;
+  lastSessionIdentity = identity;
   const version = ++sessionVersion;
   if (!session?.user) {
+    if (typeof window.setCloudDockApps === 'function') window.setCloudDockApps([]);
     dashboard.style.display = "none";
     authScreen.hidden = true;
     publicSite.hidden = false;
@@ -108,6 +114,7 @@ async function handleSession(session) {
   // dashboard as soon as Supabase confirms the session; a temporary control-plane
   // error must not make a valid login look like a failed sign-in.
   showDashboard(session.user);
+  if (typeof window.setCloudDockApps === 'function') window.setCloudDockApps([]);
   try {
     await loadOwnedApps(session.user);
     if (version !== sessionVersion) return;
@@ -299,7 +306,11 @@ if (!supabase) {
     // Avoid Supabase callback lock re-entrancy: session hydration is scheduled outside callback.
     setTimeout(() => handleSession(session), 0);
   });
-  // Supabase emits INITIAL_SESSION after the client restores its persisted session.
-  // Use that single source of truth instead of racing it against a second getSession()
-  // call during page refresh.
+  // INITIAL_SESSION normally restores the browser session. Explicitly read it as a
+  // fallback as well, so a missed/delayed initial event cannot strand the page on
+  // the public landing screen. handleSession deduplicates the same session event.
+  supabase.auth.getSession().then(({ data, error }) => {
+    if (error) showMessage('Could not restore your session: ' + error.message, true);
+    else handleSession(data?.session);
+  });
 }
