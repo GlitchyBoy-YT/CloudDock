@@ -13,6 +13,8 @@ const message = document.querySelector("#auth-message");
 const loginTab = document.querySelector("#login-tab");
 const signupTab = document.querySelector("#signup-tab");
 const forgotButton = document.querySelector("#forgot-password");
+const authTabs = document.querySelector(".auth-tabs");
+const emailLabel = emailInput.closest("label");
 const signOutButton = document.querySelector("#sign-out");
 const accountEmail = document.querySelector("#account-email");
 
@@ -31,12 +33,15 @@ function showMessage(text, isError = false) {
 function setMode(next) {
   mode = next;
   const signup = mode === "signup";
-  loginTab.classList.toggle("active", !signup);
+  const recovery = mode === "recovery";
+  authTabs.hidden = recovery;
+  emailLabel.hidden = recovery;
+  loginTab.classList.toggle("active", !signup && !recovery);
   signupTab.classList.toggle("active", signup);
-  confirmWrap.hidden = !signup;
-  forgotButton.hidden = signup;
-  passwordInput.autocomplete = signup ? "new-password" : "current-password";
-  submitButton.textContent = signup ? "Create account" : "Log in";
+  confirmWrap.hidden = !signup && !recovery;
+  forgotButton.hidden = signup || recovery;
+  passwordInput.autocomplete = signup || recovery ? "new-password" : "current-password";
+  submitButton.textContent = recovery ? "Update password" : signup ? "Create account" : "Log in";
   showMessage("");
 }
 loginTab.addEventListener("click", () => setMode("login"));
@@ -104,7 +109,15 @@ if (!supabase) {
     submitButton.disabled = true;
     showMessage(mode === "signup" ? "Creating your account…" : "Signing you in…");
     try {
-      if (mode === "signup") {
+      if (mode === "recovery") {
+        if (password !== confirmInput.value) throw new Error("The passwords do not match.");
+        if (password.length < 10) throw new Error("Use at least 10 characters for your password.");
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        await supabase.auth.signOut();
+        setMode("login");
+        showMessage("Your password was updated. You can now log in with the new password.");
+      } else if (mode === "signup") {
         if (password !== confirmInput.value) throw new Error("The passwords do not match.");
         if (password.length < 10) throw new Error("Use at least 10 characters for your password.");
         const { data, error } = await supabase.auth.signUp({
@@ -177,7 +190,15 @@ if (!supabase) {
     location.reload();
   }, true);
 
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
+    // Password recovery links create a temporary session; let the user choose a new password.
+    if (event === "PASSWORD_RECOVERY") {
+      setMode("recovery");
+      authScreen.hidden = false;
+      dashboard.style.display = "none";
+      showMessage("Choose a new password for your CloudDock account.");
+      return;
+    }
     // Avoid Supabase callback lock re-entrancy: session hydration is scheduled outside callback.
     setTimeout(() => handleSession(session), 0);
   });
