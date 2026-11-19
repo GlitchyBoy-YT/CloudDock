@@ -52,7 +52,7 @@ function showAuthSetupError() {
   publicSite.hidden = true;
   authScreen.hidden = false;
   dashboard.style.display = "none";
-  showMessage("CloudDock authentication is not configured yet. Add your Supabase project URL and publishable anon key in assets/js/config.js, then run supabase/migrations/0001_accounts_and_apps.sql in your Supabase SQL editor.", true);
+  showMessage("Login is not available yet: assets/js/config.js still needs your Supabase Project URL and publishable (anon) key. After adding those, apply the database migrations and configure the Auth Site URL / Redirect URLs in Supabase.", true);
   submitButton.disabled = true;
   forgotButton.disabled = true;
 }
@@ -86,6 +86,9 @@ function showDashboard(user) {
   authScreen.hidden = true;
   dashboard.style.display = "grid";
   accountEmail.textContent = user.email || "Signed in";
+  // Restore the current dashboard route only after the authenticated shell is visible.
+  // Public-site hashes such as #services are not valid dashboard pages and fall back to Overview.
+  if (typeof window.route === "function") window.route();
 }
 async function handleSession(session) {
   if (!session?.user) {
