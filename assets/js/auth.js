@@ -198,6 +198,18 @@ if (!supabase) {
     finally { button.disabled=false; }
   });
 
+  document.addEventListener('click', async event => {
+    const button=event.target.closest('[data-service-secrets]'); if(!button) return;
+    const name=window.prompt('Environment variable name (example: DISCORD_TOKEN):'); if(!name) return;
+    const value=window.prompt('Enter the secret value. It is encrypted before storage and cannot be viewed again:'); if(!value) return;
+    button.disabled=true;
+    try {
+      await controlPlane('set_secret',{service_id:button.dataset.serviceSecrets,name,value});
+      const toast=document.querySelector('#toast'); toast.textContent='Environment secret saved securely.'; toast.classList.add('show');
+    } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
+    finally { button.disabled=false; }
+  });
+
   document.addEventListener('change', async event => {
     const input=event.target.closest('[data-service-source]'); if(!input || !input.files?.[0]) return;
     const file=input.files[0];
