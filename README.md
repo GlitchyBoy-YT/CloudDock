@@ -24,7 +24,7 @@ CloudDock is a multi-service hosting platform with one customer account and a un
 - No CloudDock worker is provisioned by this repository. Real deployments will remain queued until an operator deploys a worker and configures its secrets.
 - The current worker runs bot services only. Minecraft and website workloads are represented in the product catalogue/schema but are not provisioned yet.
 - No reverse proxy, public service ports, live console/log streaming, interactive file manager, SFTP, backup scheduler, database provisioning, domain automation, billing, invoices, or support system yet.
-- Worker crash recovery, multi-worker scheduling/capacity reservation, usage metering, and production alerting still need work.
+- The worker now runs stale-job reconciliation: workers missing heartbeats are marked offline, abandoned jobs are retried up to three attempts, and exhausted jobs are marked failed for operator review. This is basic recovery, not high availability or capacity-aware scheduling.\n- Customer controls now include service deletion (blocked while jobs are active), secret-name listing/removal, and access to service events and deployment history. Secret values are never returned by the API.\n- Multi-worker capacity reservation, usage metering, production alerting, live console streaming, backups, databases, billing, and support workflows still need work.
 - Do not advertise paid plans, uptime guarantees, or live server locations until the infrastructure and operations are actually ready.
 
 ## Supabase setup
