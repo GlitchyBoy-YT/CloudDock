@@ -1,5 +1,6 @@
 import Docker from "dockerode";
 import fs from "node:fs/promises";
+import { createWriteStream } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { pipeline } from "node:stream/promises";
@@ -46,8 +47,7 @@ async function downloadSource(url, destination) {
   const response = await fetch(url, { signal:AbortSignal.timeout(120000) });
   if (!response.ok || !response.body) throw new Error("Could not download the uploaded source archive.");
   const archivePath = path.join(os.tmpdir(), `clouddock-${crypto.randomUUID()}.zip`);
-  const file = await fs.open(archivePath,"w",0o600);
-  try { await pipeline(response.body, file.createWriteStream()); } finally { await file.close(); }
+  await pipeline(response.body, createWriteStream(archivePath,{mode:0o600}));
   const stat = await fs.stat(archivePath);
   if (stat.size > 100 * 1024 * 1024) { await fs.rm(archivePath,{force:true}); throw new Error("Source archive exceeds the 100 MB limit."); }
   await fs.rm(destination,{recursive:true,force:true});
@@ -65,7 +65,7 @@ async function downloadSource(url, destination) {
     if (entry.type === "Directory") await fs.mkdir(target,{recursive:true,mode:0o750});
     else {
       await fs.mkdir(path.dirname(target),{recursive:true,mode:0o750});
-      await pipeline(entry.stream(),await fs.open(target,"w",0o640).then(handle=>handle.createWriteStream()));
+      await pipeline(entry.stream(),createWriteStream(target,{mode:0o644}));
     }
   }
   await fs.rm(archivePath,{force:true});
@@ -73,9 +73,13 @@ async function downloadSource(url, destination) {
 }
 const imageFor = runtime => {
   if (runtime === "nodejs") return { image:"node:22-alpine", command:["sh","-lc","if [ -f package-lock.json ]; then npm ci --omit=dev --ignore-scripts; elif [ -f package.json ]; then npm install --omit=dev --ignore-scripts; fi; exec node index.js"] };
-  if (runtime === "python") return { image:"python:3.12-alpine", command:["sh","-lc","if [ -f requirements.txt ]; then pip install --no-cache-dir --disable-pip-version-check -r requirements.txt; fi; exec python main.py"] };
+  if (runtime === "python") return { image:"python:3.12-alpine", command:["sh","-lc","if [ -f requirements.txt ]; then pip install --no-cache-dir --disable-pip-version-check --target /tmp/python-packages -r requirements.txt; fi; export PYTHONPATH=/tmp/python-packages; exec python main.py"] };
   throw new Error("This worker currently supports bot workloads using Node.js and Python only.");
 };
+async function ensureNetwork() {
+  try { await docker.getNetwork("clouddock-egress").inspect(); }
+  catch { await docker.createNetwork({Name:"clouddock-egress",Driver:"bridge",Internal:false,Options:{"com.docker.network.bridge.enable_icc":"false"}}); }
+}
 async function stopContainer(id) {
   if (!id) return;
   const container = docker.getContainer(id);
@@ -103,7 +107,7 @@ async function startService(service, env) {
       ReadonlyRootfs:true,
       CapDrop:["ALL"],
       SecurityOpt:["no-new-privileges:true"],
-      NetworkMode:"bridge",
+      NetworkMode:"clouddock-egress",
       Tmpfs:{"/tmp":"rw,noexec,nosuid,size=64m"},
       Init:true,
       RestartPolicy:{Name:"unless-stopped"},
@@ -141,6 +145,7 @@ async function processJob(job,service,environment,sourceUrl) {
 }
 async function mainLoop() {
   await fs.mkdir(dataRoot,{recursive:true,mode:0o750});
+  await ensureNetwork();
   await register();
   while (!shuttingDown) {
     try {
