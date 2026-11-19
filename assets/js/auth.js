@@ -56,24 +56,30 @@ function showAuthSetupError() {
   submitButton.disabled = true;
   forgotButton.disabled = true;
 }
+async function controlPlane(action, payload = {}) {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData?.session?.access_token) throw new Error('Please sign in again.');
+  const response = await fetch(SUPABASE_URL + '/functions/v1/control-plane', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + sessionData.session.access_token },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.error) throw new Error(result.error || ('Control plane error (' + response.status + ').'));
+  return result;
+}
 async function loadOwnedApps(user) {
-  const { data, error } = await supabase.from("apps")
-    .select("id,name,platform,runtime,status,version")
-    .eq("owner_id", user.id)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  const rows = (data || []).map(app => ({
-    id: app.id, name: app.name, platform: app.platform, runtime: app.runtime,
-    status: app.status === "running" ? "online" : "stopped", version: app.version || "Not deployed"
+  const result = await controlPlane('list_services');
+  const rows = (result.services || []).map(service => ({
+    id: service.id, name: service.name,
+    platform: service.platform ? service.platform[0].toUpperCase() + service.platform.slice(1) : service.service_type,
+    runtime: service.runtime === 'nodejs' ? 'Node.js' : service.runtime === 'python' ? 'Python' : service.runtime,
+    status: service.status === 'running' ? 'online' : 'stopped', version: service.status === 'running' ? 'Running' : service.status
   }));
-  const serialized = JSON.stringify(rows);
-  const previous = localStorage.getItem("clouddock-demo-apps");
-  localStorage.setItem("clouddock-demo-apps", serialized);
-  // Reload once when the account's database data differs from the stale browser demo cache.
-  if (previous !== serialized) {
-    window.location.reload();
-    return;
-  }
+  localStorage.setItem('clouddock-demo-apps', JSON.stringify(rows));
+  window.clouddockServices = result.services || [];
+  window.clouddockControlPlane = controlPlane;
+  if (typeof window.draw === 'function') window.draw();
 }
 function showDashboard(user) {
   publicSite.hidden = true;
