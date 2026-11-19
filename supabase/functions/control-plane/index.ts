@@ -100,7 +100,7 @@ async function handleCustomer(user: { id: string }, body: Record<string, unknown
     if (!token) throw new Error("Storage did not return an upload token.");
     const { error: updateError } = await admin.from("hosting_services").update({ source_object: objectPath, updated_at: new Date().toISOString() }).eq("id", id).eq("owner_id", user.id);
     if (updateError) throw updateError;
-    return { object_path: objectPath, upload_token: token, upload_path: signed.url || `/storage/v1/object/upload/sign/service-source/${objectPath}?token=${token}` };
+    return { object_path: objectPath, upload_token: token, upload_url: `${supabaseUrl}/storage/v1${signed.url || `/object/upload/sign/service-source/${objectPath}?token=${token}`}` };
   }
   if (action === "set_secret") {
     const id = String(body.service_id || "");
@@ -163,20 +163,33 @@ async function handleWorker(body: Record<string, unknown>) {
     }
     return { job, service: svc, environment, source_download_url };
   }
+  if (action === "report_state") {
+    const serviceId = String(body.service_id || "");
+    const status = String(body.status || "");
+    if (!/^[0-9a-f-]{36}$/i.test(serviceId) || !["running","failed","stopped"].includes(status)) throw new Error("Invalid service state report.");
+    const { data: svc, error: svcError } = await admin.from("hosting_services").select("id,owner_id,worker_id").eq("id",serviceId).eq("worker_id",workerId).single();
+    if (svcError || !svc) throw new Error("Service is not assigned to this worker.");
+    const message = String(body.message || `Worker reports service ${status}.`).slice(0,500);
+    const { error } = await admin.from("hosting_services").update({status,container_id:status==="running" ? undefined : null,last_error:status==="failed" ? message : null,updated_at:new Date().toISOString()}).eq("id",serviceId);
+    if (error) throw error;
+    const { error: eventError } = await admin.from("hosting_service_events").insert({service_id:serviceId,owner_id:svc.owner_id,level:status==="failed"?"error":"info",message});
+    if (eventError) throw eventError;
+    return {reported:true};
+  }
   if (action === "complete") {
     const jobId = String(body.job_id || "");
     const serviceId = String(body.service_id || "");
     const success = body.success === true;
     const containerId = body.container_id == null ? null : String(body.container_id).slice(0, 128);
     const errorText = body.error == null ? null : String(body.error).slice(0, 1000);
-    const { data: job, error: jobError } = await admin.from("hosting_jobs").select("id,service_id,worker_id,status").eq("id", jobId).eq("worker_id", workerId).single();
+    const { data: job, error: jobError } = await admin.from("hosting_jobs").select("id,service_id,owner_id,action,worker_id,status").eq("id", jobId).eq("worker_id", workerId).single();
     if (jobError || !job || job.status !== "claimed") throw new Error("Job is not assigned to this worker.");
     if (job.service_id !== serviceId) throw new Error("Job/service mismatch.");
     const { error: updateJobError } = await admin.from("hosting_jobs").update({ status: success ? "succeeded" : "failed", result: { container_id: containerId }, error: errorText, completed_at: new Date().toISOString() }).eq("id", jobId);
     if (updateJobError) throw updateJobError;
-    const { error: serviceError } = await admin.from("hosting_services").update({ status: success ? (body.action === "stop" ? "stopped" : "running") : "failed", container_id: success ? containerId : null, last_error: errorText, updated_at: new Date().toISOString() }).eq("id", serviceId);
+    const { error: serviceError } = await admin.from("hosting_services").update({ status: success ? (job.action === "stop" ? "stopped" : "running") : "failed", container_id: success ? containerId : null, last_error: errorText, updated_at: new Date().toISOString() }).eq("id", serviceId);
     if (serviceError) throw serviceError;
-    const { error: eventError } = await admin.from("hosting_service_events").insert({ service_id: serviceId, owner_id: body.owner_id, level: success ? "info" : "error", message: success ? `Operation ${String(body.action)} completed.` : `Operation failed: ${errorText || "unknown error"}` });
+    const { error: eventError } = await admin.from("hosting_service_events").insert({ service_id: serviceId, owner_id: job.owner_id, level: success ? "info" : "error", message: success ? `Operation ${job.action} completed.` : `Operation failed: ${errorText || "unknown error"}` });
     if (eventError) throw eventError;
     return { completed: true };
   }
