@@ -50,3 +50,35 @@ end;
 $$;
 revoke all on function public.clouddock_reconcile_stale_jobs() from public,anon,authenticated;
 grant execute on function public.clouddock_reconcile_stale_jobs() to service_role;
+
+-- Deletion is a worker operation so running containers are stopped before records disappear.
+alter table public.hosting_jobs drop constraint if exists hosting_jobs_action_check;
+alter table public.hosting_jobs add constraint hosting_jobs_action_check
+  check (action in ('start','stop','restart','deploy','delete'));
+
+create or replace function public.clouddock_enqueue_job(p_service_id uuid,p_owner_id uuid,p_action text)
+returns public.hosting_jobs
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare svc public.hosting_services;
+declare job public.hosting_jobs;
+begin
+  if p_action not in ('start','stop','restart','deploy','delete') then raise exception 'Unsupported action'; end if;
+  select * into svc from public.hosting_services where id=p_service_id and owner_id=p_owner_id for update;
+  if not found then raise exception 'Service not found'; end if;
+  if svc.status = 'suspended' and p_action in ('start','restart','deploy') then raise exception 'Service is suspended'; end if;
+  if exists(select 1 from public.hosting_jobs where service_id=p_service_id and status in ('queued','claimed','running')) then
+    raise exception 'A service operation is already in progress';
+  end if;
+  insert into public.hosting_jobs(service_id,owner_id,worker_id,action,payload)
+    values(p_service_id,p_owner_id,svc.worker_id,p_action,jsonb_build_object('service_type',svc.service_type,'runtime',svc.runtime,'region',svc.region))
+    returning * into job;
+  update public.hosting_services set status='queued',desired_state=case when p_action in ('start','restart','deploy') then 'running' else 'stopped' end,updated_at=now()
+    where id=p_service_id;
+  return job;
+end;
+$$;
+revoke all on function public.clouddock_enqueue_job(uuid,uuid,text) from public,anon,authenticated;
+grant execute on function public.clouddock_enqueue_job(uuid,uuid,text) to service_role;
