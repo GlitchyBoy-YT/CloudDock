@@ -136,6 +136,9 @@ async function execute(job,service,environment,sourceUrl) {
 }
 async function processJob(job,service,environment,sourceUrl) {
   let containerId = null;
+  const leaseHeartbeat = setInterval(() => {
+    call("heartbeat").catch(error => console.error("Could not renew job lease:",error.message));
+  }, 25000);
   try {
     containerId = await execute(job,service,environment,sourceUrl);
     await call("complete",{job_id:job.id,service_id:service.id,owner_id:job.owner_id,action:job.action,success:true,container_id:containerId});
@@ -144,6 +147,8 @@ async function processJob(job,service,environment,sourceUrl) {
     const message = error instanceof Error ? error.message : "Worker operation failed";
     await call("complete",{job_id:job.id,service_id:service.id,owner_id:job.owner_id,action:job.action,success:false,error:message});
     console.error("Job failed:",message);
+  } finally {
+    clearInterval(leaseHeartbeat);
   }
 }
 async function monitorContainers() {
