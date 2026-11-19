@@ -37,9 +37,13 @@ jobs:
           test -s supabase/functions/control-plane/index.ts
           test -s supabase/migrations/0001_accounts_and_apps.sql
           test -s supabase/migrations/0002_hosting_control_plane.sql
+          test -s supabase/migrations/0003_worker_recovery.sql
           grep -q 'enable row level security' supabase/migrations/0002_hosting_control_plane.sql
           grep -q 'clouddock_claim_job' supabase/migrations/0002_hosting_control_plane.sql
           grep -q 'clouddock_enqueue_job' supabase/migrations/0002_hosting_control_plane.sql
+          grep -q 'clouddock_reconcile_stale_jobs' supabase/migrations/0003_worker_recovery.sql
+          grep -q 'delete_service' supabase/functions/control-plane/index.ts
+          grep -q 'delete_secret' supabase/functions/control-plane/index.ts
           grep -q 'CLOUDDOCK_WORKER_TOKEN' worker/src/index.js
           grep -q 'ReadonlyRootfs:true' worker/src/index.js
           grep -q 'CapDrop:\["ALL"\]' worker/src/index.js
