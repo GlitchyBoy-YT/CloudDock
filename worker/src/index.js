@@ -122,7 +122,7 @@ async function startService(service, env) {
 }
 async function execute(job,service,environment,sourceUrl) {
   const existing = service.container_id;
-  if (job.action === "stop") {
+  if (job.action === "delete") {\n    await stopContainer(existing);\n    await fs.rm(safeServiceDir(service.id),{recursive:true,force:true});\n    return null;\n  }\n  if (job.action === "stop") {
     await stopContainer(existing);
     return null;
   }
