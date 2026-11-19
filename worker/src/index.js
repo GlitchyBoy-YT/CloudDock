@@ -143,6 +143,18 @@ async function processJob(job,service,environment,sourceUrl) {
     console.error("Job failed:",message);
   }
 }
+async function monitorContainers() {
+  const containers = await docker.listContainers({all:true,filters:{label:["com.clouddock.managed=true"]}});
+  for (const item of containers) {
+    if (item.State !== "exited" && item.State !== "dead") continue;
+    const serviceId = item.Labels?.["com.clouddock.service-id"];
+    if (!serviceId) continue;
+    try {
+      await call("report_state",{service_id:serviceId,status:"failed",message:"Workload exited unexpectedly. Check its logs on the worker host."});
+      await docker.getContainer(item.Id).remove({force:true});
+    } catch (error) { console.error("Could not report exited workload:",error.message); }
+  }
+}
 async function mainLoop() {
   await fs.mkdir(dataRoot,{recursive:true,mode:0o750});
   await ensureNetwork();
@@ -152,7 +164,7 @@ async function mainLoop() {
       await call("heartbeat");
       const result = await call("claim");
       if (result.job && result.service) await processJob(result.job,result.service,result.environment || {},result.source_download_url);
-      else await new Promise(resolve=>setTimeout(resolve,4000));
+      else { await monitorContainers(); await new Promise(resolve=>setTimeout(resolve,4000)); }
     } catch (error) {
       console.error("Worker loop error:",error.message);
       await new Promise(resolve=>setTimeout(resolve,8000));
