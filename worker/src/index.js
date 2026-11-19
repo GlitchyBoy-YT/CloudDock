@@ -62,14 +62,16 @@ async function downloadSource(url, destination) {
     if (total > 300 * 1024 * 1024) throw new Error("Uncompressed source archive exceeds the 300 MB limit.");
     const target = path.resolve(destination,normalized);
     if (!target.startsWith(destination + path.sep) && target !== destination) throw new Error("Archive path escapes the service directory.");
-    if (entry.type === "Directory") await fs.mkdir(target,{recursive:true,mode:0o750});
+    if (entry.type === "Directory") await fs.mkdir(target,{recursive:true,mode:0o777});
+      await fs.chmod(target,0o777);
     else {
-      await fs.mkdir(path.dirname(target),{recursive:true,mode:0o750});
-      await pipeline(entry.stream(),createWriteStream(target,{mode:0o644}));
+      await fs.mkdir(path.dirname(target),{recursive:true,mode:0o777});
+      await fs.chmod(path.dirname(target),0o777);
+      await pipeline(entry.stream(),createWriteStream(target,{mode:0o666}));
     }
   }
   await fs.rm(archivePath,{force:true});
-  await fs.chmod(destination,0o755);
+  await fs.chmod(destination,0o777);
 }
 const imageFor = runtime => {
   if (runtime === "nodejs") return { image:"node:22-alpine", command:["sh","-lc","if [ -f package-lock.json ]; then npm ci --omit=dev --ignore-scripts; elif [ -f package.json ]; then npm install --omit=dev --ignore-scripts; fi; exec node index.js"] };
