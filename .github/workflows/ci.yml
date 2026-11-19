@@ -21,6 +21,11 @@ jobs:
           node --check assets/js/auth.js
           node --check assets/js/config.js
           node --check assets/js/site.js
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Supabase Edge Function
+        run: deno check --no-lock supabase/functions/control-plane/index.ts
       - name: Check worker
         working-directory: worker
         run: |
