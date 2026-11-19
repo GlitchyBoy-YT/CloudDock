@@ -170,35 +170,49 @@ if (!supabase) {
     signOutButton.disabled = false;
   });
 
-  // Intercept the app form so records are saved under the signed-in user's RLS-protected account.
-  document.addEventListener("submit", async event => {
-    if (event.target.id !== "create-form") return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+  // Create hosting services through the authenticated control plane.
+  document.addEventListener('submit', async event => {
+    if (event.target.id !== 'create-form') return;
+    event.preventDefault(); event.stopImmediatePropagation();
     const data = new FormData(event.target);
-    const name = String(data.get("name") || "").trim();
-    const platform = String(data.get("platform") || "");
-    const runtime = String(data.get("runtime") || "");
-    const allowedPlatforms = ["Discord", "Nerimity", "Fluxer", "Stoat"];
-    const allowedRuntimes = ["Node.js", "Python", "Docker image (planned)"];
-    if (!name || !allowedPlatforms.includes(platform) || !allowedRuntimes.includes(runtime)) return;
-    const { data: created, error } = await supabase.from("apps").insert({
-      name, platform, runtime, status: "stopped", version: "Not deployed"
-    }).select("id,name,platform,runtime,status,version").single();
-    if (error) {
-      const toast = document.querySelector("#toast");
-      toast.textContent = "Could not create application: " + error.message;
-      toast.classList.add("show");
-      return;
-    }
-    const current = JSON.parse(localStorage.getItem("clouddock-demo-apps") || "[]");
-    current.unshift({ id: created.id, name: created.name, platform: created.platform, runtime: created.runtime, status: "stopped", version: created.version });
-    localStorage.setItem("clouddock-demo-apps", JSON.stringify(current));
-    event.target.reset();
-    document.querySelector("#modal").classList.remove("open");
-    location.hash = "applications";
-    location.reload();
+    const name = String(data.get('name') || '').trim();
+    const platform = String(data.get('platform') || '').toLowerCase();
+    const runtimeLabel = String(data.get('runtime') || '');
+    const runtime = runtimeLabel === 'Node.js' ? 'nodejs' : runtimeLabel === 'Python' ? 'python' : '';
+    try {
+      await controlPlane('create_service', { name, service_type:'bot', platform, runtime });
+      event.target.reset(); document.querySelector('#modal').classList.remove('open'); location.hash='applications';
+      await loadOwnedApps((await supabase.auth.getUser()).data.user);
+      const toast=document.querySelector('#toast'); toast.textContent='Hosting service created. Upload a ZIP to deploy it.'; toast.classList.add('show');
+    } catch (error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
   }, true);
+
+  document.addEventListener('click', async event => {
+    const button=event.target.closest('[data-service-action]'); if(!button) return;
+    button.disabled=true;
+    try {
+      await controlPlane('service_action',{service_id:button.dataset.serviceId,operation:button.dataset.serviceAction});
+      const toast=document.querySelector('#toast'); toast.textContent='Operation queued for a hosting worker.'; toast.classList.add('show');
+      await loadOwnedApps((await supabase.auth.getUser()).data.user);
+    } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
+    finally { button.disabled=false; }
+  });
+
+  document.addEventListener('change', async event => {
+    const input=event.target.closest('[data-service-source]'); if(!input || !input.files?.[0]) return;
+    const file=input.files[0];
+    if(!file.name.toLowerCase().endsWith('.zip') || file.size>100*1024*1024) { const toast=document.querySelector('#toast'); toast.textContent='Choose a ZIP archive no larger than 100 MB.'; toast.classList.add('show'); input.value=''; return; }
+    input.disabled=true;
+    try {
+      const signed=await controlPlane('create_upload_url',{service_id:input.dataset.serviceSource});
+      const upload=await fetch(signed.upload_url,{method:'PUT',headers:{'Content-Type':'application/zip','x-upsert':'false'},body:file});
+      if(!upload.ok) throw new Error('Source upload failed. Check the private service-source bucket setup.');
+      await controlPlane('service_action',{service_id:input.dataset.serviceSource,operation:'deploy'});
+      const toast=document.querySelector('#toast'); toast.textContent='Source uploaded and deployment queued.'; toast.classList.add('show');
+      await loadOwnedApps((await supabase.auth.getUser()).data.user);
+    } catch(error) { const toast=document.querySelector('#toast'); toast.textContent=error.message; toast.classList.add('show'); }
+    finally { input.disabled=false; input.value=''; }
+  });
 
   supabase.auth.onAuthStateChange((event, session) => {
     // Password recovery links create a temporary session; let the user choose a new password.
