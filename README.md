@@ -10,6 +10,7 @@ A responsive, static HTML/CSS/JavaScript website designed for GitHub Pages.
 
 ### Pages
 - Home — product overview and platform introduction
+- Dashboard — interactive customer control-panel preview with sample services, resource cards, activity, and billing placeholder
 - Products — planned hosting categories
 - Pricing — planned tiers (no checkout is active)
 - Locations — infrastructure regions under evaluation
@@ -22,6 +23,7 @@ A responsive, static HTML/CSS/JavaScript website designed for GitHub Pages.
 - Responsive layout and mobile navigation
 - Dark/light theme switcher with local preference
 - Custom CloudDock branding and favicon
+- Interactive dashboard navigation and service-detail preview
 - No build step or package installation required
 - GitHub Pages-compatible relative asset paths
 
@@ -46,7 +48,7 @@ Expected URL: https://glitchyboy-yt.github.io/CloudDock/
 
 ## Development status and architecture
 
-CloudDock is in development. Product descriptions and region listings describe planned offerings, not live infrastructure. The preview has no production authentication, checkout, customer control panel, live monitoring API, or service provisioning.
+CloudDock is in development. Product descriptions and region listings describe planned offerings, not live infrastructure. The dashboard is a static visual preview with sample data only. There is no production authentication, checkout, live monitoring API, support ticket system, or service provisioning.
 
 GitHub Pages serves only the static frontend. A production hosting platform will need separately deployed backend APIs, secure authentication, billing, databases, and compute workers. Never place Supabase service-role keys, provider credentials, or other secrets in this repository or frontend code.
 
