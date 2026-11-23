@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080d18">
+  <meta name="description" content="CloudDock customer control panel preview.">
+  <title>Control Panel — CloudDock</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/dashboard.css">
+  <script defer src="assets/js/main.js"></script>
+  <script defer src="assets/js/dashboard.js"></script>
+</head>
+<body class="panel-body">
+  <header class="site-header">
+    <nav class="nav container" aria-label="Main navigation">
+      <a class="brand" href="index.html"><span class="brand-mark">C</span><span>cloud<span class="brand-light">dock</span></span></a>
+      <div class="panel-nav-links"><a href="products.html">Hosting</a><a href="docs.html">Documentation</a><a href="support.html">Support</a></div>
+      <div class="nav-actions"><span class="preview-pill">DEMO PREVIEW</span><button class="theme-toggle" aria-label="Switch color theme"><span class="theme-icon">☼</span></button><a class="nav-login" href="index.html">Exit panel</a></div>
+    </nav>
+  </header>
+  <main class="panel-shell container">
+    <aside class="panel-sidebar" aria-label="Control panel navigation">
+      <div class="workspace-label">WORKSPACE</div>
+      <button class="side-link active" data-view="overview"><span>⌂</span> Overview</button>
+      <button class="side-link" data-view="services"><span>▦</span> My services <b>3</b></button>
+      <button class="side-link" data-view="billing"><span>◇</span> Billing</button>
+      <button class="side-link" data-view="activity"><span>◷</span> Activity</button>
+      <div class="sidebar-bottom"><div class="demo-user"><span class="user-avatar">D</span><span><strong>Demo account</strong><small>Preview workspace</small></span></div><div class="sidebar-note">This is a visual preview. No account data is connected.</div></div>
+    </aside>
+    <section class="panel-main">
+      <div class="panel-topline"><div><div class="eyebrow"><span class="eyebrow-line"></span> YOUR WORKSPACE</div><h1 id="view-title">Overview</h1><p id="view-subtitle">A quick look at the projects in your dock.</p></div><button class="button button-primary" id="order-button">＋ Explore hosting</button></div>
+      <div class="demo-notice"><span>ⓘ</span><div><strong>You're viewing the CloudDock dashboard preview.</strong><p>Everything below is sample information. Sign-in, purchases, billing, and live server actions are not enabled.</p></div></div>
+      <div class="overview-view" data-panel="overview">
+        <div class="metric-grid">
+          <article class="metric-card"><span>Active services</span><strong>03</strong><small><i class="metric-dot"></i> Sample workspace</small></article>
+          <article class="metric-card"><span>Monthly spend</span><strong>$0.00</strong><small>Billing is not connected</small></article>
+          <article class="metric-card"><span>Resource usage</span><strong>42%</strong><small>Illustrative combined usage</small></article>
+          <article class="metric-card"><span>Open tickets</span><strong>00</strong><small>Support portal planned</small></article>
+        </div>
+        <div class="panel-section-heading"><div><h2>Your services</h2><p>Manage the projects in your workspace.</p></div><button class="subtle-button" data-switch="services">View all services →</button></div>
+        <div class="service-grid">
+          <article class="panel-service"><div class="service-head"><span class="service-glyph glyph-purple">▦</span><span class="service-state state-demo">DEMO</span></div><h3>Survival SMP</h3><p>Minecraft · Example server</p><div class="service-meta"><span>CPU <b>38%</b></span><span>Memory <b>3.2 / 6 GB</b></span></div><div class="usage-track"><span style="width:38%"></span></div><button class="service-open" data-service="Survival SMP">View service <span>→</span></button></article>
+          <article class="panel-service"><div class="service-head"><span class="service-glyph glyph-blue">⌘</span><span class="service-state state-demo">DEMO</span></div><h3>Community Bot</h3><p>Discord bot · Example app</p><div class="service-meta"><span>CPU <b>12%</b></span><span>Memory <b>180 / 512 MB</b></span></div><div class="usage-track"><span style="width:12%"></span></div><button class="service-open" data-service="Community Bot">View service <span>→</span></button></article>
+          <article class="panel-service"><div class="service-head"><span class="service-glyph glyph-green">⌁</span><span class="service-state state-demo">DEMO</span></div><h3>Portfolio site</h3><p>Website · Example project</p><div class="service-meta"><span>Bandwidth <b>1.4 GB</b></span><span>Storage <b>620 MB</b></span></div><div class="usage-track"><span style="width:24%"></span></div><button class="service-open" data-service="Portfolio site">View service <span>→</span></button></article>
+        </div>
+        <div class="panel-lower-grid"><article class="panel-box"><div class="panel-section-heading"><div><h2>Recent activity</h2><p>Example events from a demo workspace.</p></div><span class="muted-tag">SAMPLE</span></div><div class="activity-row"><span class="activity-icon">↻</span><div><strong>Service configuration updated</strong><small>Survival SMP · Example event</small></div><time>2h ago</time></div><div class="activity-row"><span class="activity-icon">＋</span><div><strong>New service added</strong><small>Community Bot · Example event</small></div><time>Yesterday</time></div><div class="activity-row"><span class="activity-icon">✓</span><div><strong>Deployment completed</strong><small>Portfolio site · Example event</small></div><time>2d ago</time></div></article><article class="panel-box help-box"><span class="help-spark">✦</span><h2>Need a hand?</h2><p>Explore the documentation or visit the support page to learn how CloudDock is taking shape.</p><a class="button button-outline" href="docs.html">Open documentation →</a></article></div>
+      </div>
+      <div class="detail-view" data-panel="services" hidden><div class="panel-box"><div class="panel-section-heading"><div><h2>All services</h2><p>These are illustrative services, not running instances.</p></div><span class="muted-tag">3 EXAMPLES</span></div><div class="table-wrap"><table><thead><tr><th>Service</th><th>Type</th><th>Example resources</th><th>State</th><th></th></tr></thead><tbody><tr><td><strong>Survival SMP</strong><small>cd-mc-001</small></td><td>Minecraft</td><td>6 GB RAM</td><td><span class="table-state">Demo</span></td><td><button class="subtle-button" data-service="Survival SMP">Details</button></td></tr><tr><td><strong>Community Bot</strong><small>cd-app-002</small></td><td>Bot hosting</td><td>512 MB RAM</td><td><span class="table-state">Demo</span></td><td><button class="subtle-button" data-service="Community Bot">Details</button></td></tr><tr><td><strong>Portfolio site</strong><small>cd-web-003</small></td><td>Website</td><td>5 GB storage</td><td><span class="table-state">Demo</span></td><td><button class="subtle-button" data-service="Portfolio site">Details</button></td></tr></tbody></table></div></div></div>
+      <div class="detail-view" data-panel="billing" hidden><div class="panel-box empty-state"><span class="empty-icon">◇</span><h2>Billing is not connected</h2><p>There are no payment methods, invoices, or subscriptions in this preview. A secure billing integration will be added before real purchases are enabled.</p><a class="button button-outline" href="pricing.html">View planned pricing →</a></div></div>
+      <div class="detail-view" data-panel="activity" hidden><div class="panel-box"><h2>Workspace activity</h2><p class="muted-copy">Sample activity only. Live audit events will require authenticated backend records.</p><div class="activity-row"><span class="activity-icon">↻</span><div><strong>Service configuration updated</strong><small>Survival SMP · Example event</small></div><time>2h ago</time></div><div class="activity-row"><span class="activity-icon">＋</span><div><strong>New service added</strong><small>Community Bot · Example event</small></div><time>Yesterday</time></div><div class="activity-row"><span class="activity-icon">✓</span><div><strong>Deployment completed</strong><small>Portfolio site · Example event</small></div><time>2d ago</time></div></div></div>
+      <div class="service-modal" id="service-modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-card"><button class="modal-close" id="modal-close" aria-label="Close service details">×</button><span class="muted-tag">DEMO SERVICE</span><h2 id="modal-title">Service details</h2><p>This is a sample service preview. Live console access, start/stop controls, file management, and configuration changes will be connected to the hosting backend later.</p><div class="modal-actions"><a class="button button-outline" href="docs.html">Read docs</a><button class="button button-primary" id="modal-done">Got it</button></div></div></div>
+    </section>
+  </main>
+  <footer class="panel-footer"><div class="container"><span>© <span id="year"></span> CloudDock</span><span>Control panel preview · <a href="https://github.com/GlitchyBoy-YT/CloudDock">GitHub</a></span></div></footer>
+</body>
+</html>
