@@ -27,9 +27,8 @@ A responsive, static HTML/CSS/JavaScript website designed for GitHub Pages.
 - Terms and Privacy — preliminary draft notices
 
 ### Features
-- Supabase email/password authentication pages (configuration required)
-- Sign-up, sign-in, email confirmation, password reset, and account profile
-- Supabase migration for automatic profile creation
+- Static dashboard preview with sample data only
+- Database schema preparation documented separately; no customer authentication is enabled
 - Responsive layouts and mobile navigation
 - Dark/light theme switcher with local preference
 - Custom CloudDock branding and favicon
@@ -61,7 +60,7 @@ Expected URL: https://glitchyboy-yt.github.io/CloudDock/
 
 CloudDock is in development. Product descriptions and region listings describe planned offerings, not live infrastructure. The dashboard is a static visual preview with sample data only. There is no production authentication, live monitoring API, support ticket system, or service provisioning.
 
-GitHub Pages serves only the static frontend. A production hosting platform will need separately deployed backend APIs, secure authentication, a database, and compute workers. The database foundation is documented in `supabase/README.md`, `supabase/AUTH_SETUP.md`, and the migrations under `supabase/migrations/`. The authentication UI is ready to configure, but it will not work until a dedicated Supabase project is created, migrations are applied, redirect URLs are configured, and the public project URL/key are added to `supabase-config.js`. Never place Supabase service-role keys, provider credentials, or other secrets in this repository or frontend code.
+GitHub Pages serves only the static frontend. A production hosting platform will need separately deployed backend APIs, secure authentication, a database, and compute workers. The database foundation is documented in `supabase/README.md`, `supabase/AUTH_SETUP.md`, and the migrations under `supabase/migrations/`. No customer authentication UI is currently published. Authentication will be introduced only after a dedicated backend is configured, reviewed, and tested. Never place Supabase service-role keys, provider credentials, or other secrets in this repository or frontend code.
 
 ## Contributing
 
