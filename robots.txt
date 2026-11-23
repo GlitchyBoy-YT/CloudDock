@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://glitchyboy-yt.github.io/CloudDock/sitemap.xml
