@@ -6,44 +6,50 @@ CloudDock is an in-development hosting platform concept for Minecraft servers, D
 
 ## Public website
 
-The public website is a responsive, static site designed for GitHub Pages.
+A responsive, static HTML/CSS/JavaScript website designed for GitHub Pages.
+
+### Pages
+- Home — product overview and platform introduction
+- Products — planned hosting categories
+- Pricing — planned tiers (no checkout is active)
+- Locations — infrastructure regions under evaluation
+- Status — honest project/service status
+- Documentation — getting-started information
+- Support — FAQs and issue tracker
+- Terms and Privacy — preliminary draft notices
 
 ### Features
-- Responsive landing page and mobile navigation
-- Hosting category overview
-- Planned pricing tiers and launch messaging
-- FAQ and contact links
-- Dark/light theme switcher with saved preference
-- Custom CloudDock favicon and 404 page
+- Responsive layout and mobile navigation
+- Dark/light theme switcher with local preference
+- Custom CloudDock branding and favicon
 - No build step or package installation required
+- GitHub Pages-compatible relative asset paths
 
 ## Run locally
 
-Open \`index.html\` in a browser, or start a local static server:
+Open `index.html` in a browser or run:
 
-\`\`\`bash
+```bash
 python -m http.server 8000
-\`\`\`
+```
 
-Then visit \`http://localhost:8000\`.
+Then visit `http://localhost:8000`.
 
 ## Deploy with GitHub Pages
 
-1. Open the repository's **Settings → Pages**.
-2. Under **Build and deployment**, choose **Deploy from a branch**.
-3. Select the \`main\` branch and \`/(root)\` folder.
-4. Save and wait for the Pages deployment to finish.
+1. Open **Settings → Pages**.
+2. Under **Build and deployment**, select **Deploy from a branch**.
+3. Choose `main` and `/(root)`.
+4. Save and wait for deployment.
 
-The site will be published at:
+Expected URL: https://glitchyboy-yt.github.io/CloudDock/
 
-\`https://glitchyboy-yt.github.io/CloudDock/\`
+## Development status and architecture
 
-## Important project status
+CloudDock is in development. Product descriptions and region listings describe planned offerings, not live infrastructure. The preview has no production authentication, checkout, customer control panel, live monitoring API, or service provisioning.
 
-CloudDock is currently in development. Pricing, availability, service provisioning, customer accounts, billing, and the hosting control panel are not live. Website content describes the intended product direction and should not be interpreted as a guarantee of currently available services.
-
-GitHub Pages only serves the static public website. Production authentication, billing, APIs, databases, and actual compute/hosting workloads must be provided by separate backend infrastructure.
+GitHub Pages serves only the static frontend. A production hosting platform will need separately deployed backend APIs, secure authentication, billing, databases, and compute workers. Never place Supabase service-role keys, provider credentials, or other secrets in this repository or frontend code.
 
 ## License
 
-This repository is distributed under the MIT License. See [LICENSE](LICENSE).
+See [LICENSE](LICENSE).
