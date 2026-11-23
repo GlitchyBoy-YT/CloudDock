@@ -4,10 +4,11 @@ CloudDock's initial schema is in `migrations/0001_initial_schema.sql`.
 
 ## Current scope
 
-The migration creates:
+The migrations create:
 - `profiles` — a customer's own profile row.
 - `service_requests` — requests for a planned hosting service; these are not running instances.
 - `service_events` — read-only customer-visible timeline entries.
+- An Auth trigger that automatically creates a profile row for each new account (migration `0002_auth_profile_trigger.sql`).
 
 Row-level security is enabled. Customers can read and edit only their own profile, submit and view only their own service requests, and read events belonging to their own requests. Customers cannot approve requests or write activity events.
 
@@ -16,8 +17,10 @@ Row-level security is enabled. Customers can read and edit only their own profil
 1. Create a Supabase project for CloudDock.
 2. Open the project's SQL Editor.
 3. Review and run `migrations/0001_initial_schema.sql`.
-4. Verify the three tables and their row-level security policies in the Table Editor.
-5. Keep the project's service-role key private. It must never be added to this public GitHub Pages repository or browser JavaScript.
+4. Review and run `migrations/0002_auth_profile_trigger.sql`.
+5. Verify the tables and their row-level security policies in the Table Editor.
+6. Follow `AUTH_SETUP.md` to configure authentication and the public frontend key.
+7. Keep the project's service-role key private. It must never be added to this public GitHub Pages repository or browser JavaScript.
 
 ## Frontend configuration (when authentication is added)
 
